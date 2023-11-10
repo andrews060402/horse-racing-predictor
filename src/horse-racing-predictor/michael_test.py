@@ -51,9 +51,9 @@ mlp_preds = mlp.predict(X_test)
 logistic_preds = logistic.predict(X_test)
 
 # Evaluate models
-svm_f1 = f1_score(y_test, svm_preds)
-mlp_f1 = f1_score(y_test, mlp_preds)
-logistic_f1 = f1_score(y_test, logistic_preds)
+svm_f1 = f1_score(y_test, svm_preds, average='weighted')
+mlp_f1 = f1_score(y_test, mlp_preds, average='weighted')
+logistic_f1 = f1_score(y_test, logistic_preds, average='weighted')
 
 # Print F1 scores
 print(f'SVM F1 Score: {svm_f1}')
