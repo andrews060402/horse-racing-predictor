@@ -1,76 +1,102 @@
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC
-from sklearn.decomposition import PCA
-import matplotlib.pyplot as plt
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import f1_score, precision_score, recall_score, confusion_matrix
 import numpy as np
+import matplotlib.pyplot as plt
 
-# Attributes specified in your original code
 attributes = ['age', 'weight', 'sex', 'start_position', 'weather', 'track_conditions', 'finish_position']
 
 # Step 1: Load the CSV file into a pandas DataFrame
-# Replace the file path with the correct path to your CSV file
 df = pd.read_csv('../../data/woodbine_horses.csv', usecols=attributes)
 
 # Exclude rows where 'age' or 'weight' are zero
 df = df[(df['age'] != 0) & (df['weight'] != 0)]
 
-# Create binary outcome for top 3 finish
 df['top_3_finish'] = df['finish_position'].apply(lambda x: 1 if x in [1, 2, 3] else 0)
 
-# Encoding categorical attributes
+# Assuming 'sex', 'weather', and 'track_conditions' are categorical
 categorical_attributes = ['sex', 'weather', 'track_conditions']
+label_encoders = {}
+
 for cat_attr in categorical_attributes:
-    df[cat_attr] = LabelEncoder().fit_transform(df[cat_attr])
+    label_encoder = LabelEncoder()
+    df[cat_attr] = label_encoder.fit_transform(df[cat_attr])
+    label_encoders[cat_attr] = label_encoder
 
-# Scaling numerical attributes
+# Feature Scaling
+scaler = StandardScaler()
 numerical_attributes = ['age', 'weight', 'start_position']
-df[numerical_attributes] = StandardScaler().fit_transform(df[numerical_attributes])
+df[numerical_attributes] = scaler.fit_transform(df[numerical_attributes])
 
-# Splitting data
+# Splitting the Data into Training and Testing Sets
 X = df.drop(['finish_position', 'top_3_finish'], axis=1)
 y = df['top_3_finish']
+
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20, random_state=42)
 
-# Reducing the features to 2D for visualization
-pca = PCA(n_components=2)
-X_train_2d = pca.fit_transform(X_train)
-X_test_2d = pca.transform(X_test)
+# MODEL TRAINING AND EVALUATION
+# Initialize models
+svm = SVC(C=10, gamma='scale', probability=True)  # Added probability=True for SVM to output probabilities
+mlp = MLPClassifier(max_iter=500, learning_rate_init=0.001)
+logistic = LogisticRegression(solver='liblinear', max_iter=500, penalty='l1', C=0.5)
 
-# Train the SVM model on the 2D data
-svm_2d = SVC(C=10, gamma='scale')
-svm_2d.fit(X_train_2d, y_train)
+# Train models
+svm.fit(X_train, y_train)
+mlp.fit(X_train, y_train)
+logistic.fit(X_train, y_train)
 
+# Make predictions
+svm_preds = svm.predict(X_test)
+mlp_preds = mlp.predict(X_test)
+logistic_preds = logistic.predict(X_test)
 
-# Function to plot the decision boundary
-def plot_decision_boundary(clf, X, y, plot_support=True):
-    plt.scatter(X[:, 0], X[:, 1], c=y, s=30, cmap='autumn')
-    ax = plt.gca()
-    xlim = ax.get_xlim()
-    ylim = ax.get_ylim()
+# Evaluate models
+svm_f1 = f1_score(y_test, svm_preds, average='weighted')
+mlp_f1 = f1_score(y_test, mlp_preds, average='weighted')
+logistic_f1 = f1_score(y_test, logistic_preds, average='weighted')
 
-    xx = np.linspace(xlim[0], xlim[1], 30)
-    yy = np.linspace(ylim[0], ylim[1], 30)
-    YY, XX = np.meshgrid(yy, xx)
-    xy = np.vstack([XX.ravel(), YY.ravel()]).T
-    Z = clf.decision_function(xy).reshape(XX.shape)
-
-    ax.contour(XX, YY, Z, colors='k', levels=[-1, 0, 1], alpha=0.5, linestyles=['--', '-', '--'])
-
-    if plot_support:
-        ax.scatter(clf.support_vectors_[:, 0], clf.support_vectors_[:, 1], s=100, linewidth=1, facecolors='none',
-                   edgecolors='k')
-    ax.set_xlim(xlim)
-    ax.set_ylim(ylim)
+# Print F1 scores
+print(f'SVM F1 Score: {svm_f1}')
+print(f'MLP F1 Score: {mlp_f1}')
+print(f'Logistic Regression F1 Score: {logistic_f1}')
 
 
-# Visualize the SVM decision boundary on 2D data
-plt.figure(figsize=(8, 6))
-plot_decision_boundary(svm_2d, X_train_2d, y_train)
-plt.xlabel('PCA Feature 1')
-plt.ylabel('PCA Feature 2')
-plt.title('SVM Decision Boundary with Support Vectors')
-plt.show()
+# Function to calculate TP, FP, FN
+def calculate_tp_fp_fn(y_true, y_pred):
+    tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
+    return tp, fp, fn
 
-# [Continue with the rest of your original code]
+# Evaluate models and calculate TP, FP, FN
+for model_name, model in zip(['SVM', 'MLP', 'Logistic Regression'], [svm, mlp, logistic]):
+    preds = model.predict(X_test)
+    tp, fp, fn = calculate_tp_fp_fn(y_test, preds)
+    print(f"{model_name} - True Positives: {tp}, False Positives: {fp}, False Negatives: {fn}")
+
+# Define a function to adjust predictions based on a new threshold
+def adjust_predictions(model, X, threshold=0.5):
+    probabilities = model.predict_proba(X)[:, 1]  # Probabilities of the positive class
+    return np.where(probabilities >= threshold, 1, 0)
+
+# Adjust threshold and recalculate metrics for each model
+new_threshold = 0.4  # Example threshold, can be tuned
+
+for model_name, model in zip(['SVM', 'MLP', 'Logistic Regression'], [svm, mlp, logistic]):
+    # Adjust predictions based on the new threshold
+    adjusted_preds = adjust_predictions(model, X_test, new_threshold)
+
+    # Recalculate metrics
+    tp, fp, fn = calculate_tp_fp_fn(y_test, adjusted_preds)
+    adjusted_f1 = f1_score(y_test, adjusted_preds, average='weighted')
+    adjusted_precision = precision_score(y_test, adjusted_preds, average='weighted')
+    adjusted_recall = recall_score(y_test, adjusted_preds, average='weighted')
+
+    # Print the recalculated metrics
+    print(f"{model_name} with threshold {new_threshold}:")
+    print(f"True Positives: {tp}, False Positives: {fp}, False Negatives: {fn}")
+    print(f"Adjusted Precision: {adjusted_precision}")
+    print(f"Adjusted Recall: {adjusted_recall}")
+    print(f"Adjusted F1 Score: {adjusted_f1}\n")

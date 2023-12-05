@@ -4,7 +4,7 @@ from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import f1_score, precision_score, recall_score
+from sklearn.metrics import f1_score, precision_score, recall_score, confusion_matrix
 import matplotlib.pyplot as plt
 
 attributes = ['age', 'weight', 'sex', 'start_position', 'weather', 'track_conditions', 'finish_position']
@@ -66,8 +66,6 @@ print(f'SVM F1 Score: {svm_f1}')
 print(f'MLP F1 Score: {mlp_f1}')
 print(f'Logistic Regression F1 Score: {logistic_f1}')
 
-# ... [previous code for training and predictions]
-
 # Evaluate models and print results
 for model_name, model in zip(['SVM', 'MLP', 'Logistic Regression'], [svm, mlp, logistic]):
     preds = model.predict(X_test)
@@ -89,7 +87,6 @@ for model_name, model in zip(['SVM', 'MLP', 'Logistic Regression'], [svm, mlp, l
 
     tp, fp, fn = calculate_tp_fp_fn(y_test, preds)
     print(f"{model_name} - True Positives: {tp}, False Positives: {fp}, False Negatives: {fn}")
-# ... [any additional code]
 
 # # Bar plot of F1 scores
 # models = ['SVM', 'MLP', 'Logistic Regression']
