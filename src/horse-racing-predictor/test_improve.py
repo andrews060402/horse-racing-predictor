@@ -59,53 +59,51 @@ svm_f1 = f1_score(y_test, svm_preds, average='weighted')
 mlp_f1 = f1_score(y_test, mlp_preds, average='weighted')
 logistic_f1 = f1_score(y_test, logistic_preds, average='weighted')
 
-# Print F1 scores
-# print(f'SVM F1 Score: {svm_f1}')
-# print(f'MLP F1 Score: {mlp_f1}')
-# print(f'Logistic Regression F1 Score: {logistic_f1}')
-
 # Evaluate models and print results
 for model_name, model in zip(['SVM', 'MLP', 'Logistic Regression'], [svm, mlp, logistic]):
     preds = model.predict(X_test)
     f1 = f1_score(y_test, preds, average='binary')
     precision = precision_score(y_test, preds, average='binary')
     recall = recall_score(y_test, preds, average='binary')
-    f2 = 2 * (precision * recall) / (precision + recall)
     print(f"{model_name} - Precision: {precision}, Recall: {recall}, F1 Score: {f1}")
-    print(f2)
+
 
 # Function to calculate TP, FP, FN
 def calculate_tp_fp_fn(y_true, y_pred):
     tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
-    return tp, fp, fn
+    return tp, tn, fp, fn
+
 
 # Evaluate models and calculate TP, FP, FN
 for model_name, model in zip(['SVM', 'MLP', 'Logistic Regression'], [svm, mlp, logistic]):
     preds = model.predict(X_test)
-    tp, fp, fn = calculate_tp_fp_fn(y_test, preds)
-    print(f"{model_name} - True Positives: {tp}, False Positives: {fp}, False Negatives: {fn}")
+    tp, tn, fp, fn = calculate_tp_fp_fn(y_test, preds)
+    print(f"{model_name} - True Positives: {tp}, True Negatives: {tn}, False Positives: {fp}, False Negatives: {fn}")
+print('----------------------------------------------------\n')
+
 
 # Define a function to adjust predictions based on a new threshold
 def adjust_predictions(model, X, threshold=0.5):
     probabilities = model.predict_proba(X)[:, 1]  # Probabilities of the positive class
     return np.where(probabilities >= threshold, 1, 0)
 
+
 # Adjust threshold and recalculate metrics for each model
-new_threshold = 0.35  # Example threshold, can be tuned
+new_threshold = 0.3  # Example threshold, can be tuned
 
 for model_name, model in zip(['SVM', 'MLP', 'Logistic Regression'], [svm, mlp, logistic]):
     # Adjust predictions based on the new threshold
     adjusted_preds = adjust_predictions(model, X_test, new_threshold)
 
     # Recalculate metrics
-    tp, fp, fn = calculate_tp_fp_fn(y_test, adjusted_preds)
+    tp, tn, fp, fn = calculate_tp_fp_fn(y_test, adjusted_preds)
     adjusted_f1 = f1_score(y_test, adjusted_preds, average='binary')
     adjusted_precision = precision_score(y_test, adjusted_preds, average='binary')
     adjusted_recall = recall_score(y_test, adjusted_preds, average='binary')
 
     # Print the recalculated metrics
     print(f"{model_name} with threshold {new_threshold}:")
-    print(f"True Positives: {tp}, False Positives: {fp}, False Negatives: {fn}")
+    print(f"True Positives: {tp}, True Negatives, {tn}, False Positives: {fp}, False Negatives: {fn}")
     print(f"Adjusted Precision: {adjusted_precision}")
     print(f"Adjusted Recall: {adjusted_recall}")
     print(f"Adjusted F1 Score: {adjusted_f1}\n")
